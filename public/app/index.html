@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trendsetter Market</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #081226;
+      --panel: rgba(14, 22, 45, 0.92);
+      --panel-2: rgba(22, 35, 69, 0.94);
+      --text: #eef3ff;
+      --muted: #97a3c6;
+      --accent: #8bb7ff;
+      --accent-2: #4d7dff;
+      --danger: #ff6b6b;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 20px 40px rgba(0,0,0,.35);
+      font-family: Inter, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #12254f 0%, #081226 45%, #040811 100%);
+      color: var(--text);
+    }
+    .wrap { padding: 16px 16px 120px; max-width: 960px; margin: 0 auto; }
+    .hero {
+      position: relative;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(25, 37, 70, .85), rgba(8, 18, 38, .95));
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .hero img.cover { width: 100%; height: 240px; object-fit: cover; opacity: .65; display: block; }
+    .hero-content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; gap: 8px; background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,.72) 100%); }
+    .badge { display: inline-flex; width: fit-content; padding: 8px 12px; background: rgba(255,255,255,.08); border-radius: 999px; color: var(--accent); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    h1,h2,h3,p { margin: 0; }
+    .muted { color: var(--muted); }
+    .row { display: grid; gap: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .card img { width: 100%; height: 220px; object-fit: cover; display: block; }
+    .card-body { padding: 16px; display: grid; gap: 10px; }
+    .price { font-weight: 700; font-size: 20px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid var(--border); color: var(--muted); background: rgba(255,255,255,.03); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+    .sizes { display: flex; flex-wrap: wrap; gap: 8px; }
+    .size {
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer;
+    }
+    .size.active { background: rgba(139,183,255,.16); border-color: var(--accent); }
+    .button {
+      border: 0; border-radius: 16px; padding: 14px 16px; font-size: 15px; cursor: pointer; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #04101e;
+    }
+    .button.secondary { background: rgba(255,255,255,.06); color: var(--text); }
+    .toolbar { display: flex; gap: 10px; overflow: auto; padding-bottom: 4px; }
+    .toolbar button { white-space: nowrap; }
+    .panel { padding: 16px; display: grid; gap: 14px; }
+    .cart-item { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; }
+    .cart-item img { width: 64px; height: 64px; border-radius: 16px; object-fit: cover; }
+    input, textarea {
+      width: 100%; border-radius: 16px; padding: 14px 16px; border: 1px solid var(--border); background: rgba(255,255,255,.03); color: var(--text);
+    }
+    .section-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .sticky-bar {
+      position: fixed; left: 12px; right: 12px; bottom: 12px; background: rgba(8,18,38,.96); border: 1px solid var(--border);
+      border-radius: 22px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <img src="/app/avatar.png" alt="Trendsetter" class="cover" />
+      <div class="hero-content">
+        <span class="badge">Telegram Mini App</span>
+        <h1 id="storeName">Trendsetter Market</h1>
+        <p class="muted" id="storeDescription">Загрузка...</p>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-bottom:16px;">
+      <div class="section-title">
+        <div>
+          <h2>Каталог</h2>
+          <p class="muted" id="deliveryNote"></p>
+        </div>
+      </div>
+      <div class="toolbar" id="categories"></div>
+    </section>
+
+    <section class="grid" id="products"></section>
+
+    <section class="panel hidden" id="cartPanel" style="margin-top:16px;">
+      <div class="section-title">
+        <div>
+          <h2>Оформление</h2>
+          <p class="muted">Заполни контакты, чтобы мы быстро связались.</p>
+        </div>
+      </div>
+      <div id="cartItems" class="row"></div>
+      <div class="row">
+        <input id="fullName" placeholder="Имя и фамилия" />
+        <input id="phone" placeholder="Телефон" />
+        <textarea id="address" rows="3" placeholder="Адрес / город / способ доставки"></textarea>
+        <textarea id="comment" rows="3" placeholder="Комментарий к заказу"></textarea>
+      </div>
+      <button class="button" id="submitOrder">Подтвердить заказ</button>
+    </section>
+  </div>
+
+  <div class="sticky-bar hidden" id="checkoutBar">
+    <div>
+      <div style="font-size:13px" class="muted">В корзине <span id="cartCount">0</span> шт.</div>
+      <div style="font-size:20px;font-weight:800;" id="cartTotal">0 ₽</div>
+    </div>
+    <button class="button" id="openCheckout">Оформить</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const state = {
+      products: [],
+      settings: null,
+      category: 'all',
+      cart: [],
+    };
+
+    const els = {
+      storeName: document.getElementById('storeName'),
+      storeDescription: document.getElementById('storeDescription'),
+      deliveryNote: document.getElementById('deliveryNote'),
+      categories: document.getElementById('categories'),
+      products: document.getElementById('products'),
+      cartPanel: document.getElementById('cartPanel'),
+      cartItems: document.getElementById('cartItems'),
+      checkoutBar: document.getElementById('checkoutBar'),
+      cartCount: document.getElementById('cartCount'),
+      cartTotal: document.getElementById('cartTotal'),
+      openCheckout: document.getElementById('openCheckout'),
+      submitOrder: document.getElementById('submitOrder'),
+      fullName: document.getElementById('fullName'),
+      phone: document.getElementById('phone'),
+      address: document.getElementById('address'),
+      comment: document.getElementById('comment'),
+    };
+
+    function money(value) {
+      const currency = state.settings?.currency || '₽';
+      return `${(value / 100).toFixed(2)} ${currency}`;
+    }
+
+    function notify(message, danger = false) {
+      tg.showPopup({ title: danger ? 'Ошибка' : 'Готово', message, buttons: [{ type: 'ok' }] });
+    }
+
+    function renderCategories() {
+      const categories = ['all', ...new Set(state.products.map(p => p.category).filter(Boolean))];
+      els.categories.innerHTML = categories.map(cat => `
+        <button class="button ${state.category === cat ? '' : 'secondary'}" data-cat="${cat}">
+          ${cat === 'all' ? 'Все' : cat}
+        </button>
+      `).join('');
+
+      [...els.categories.querySelectorAll('button')].forEach(btn => {
+        btn.onclick = () => {
+          state.category = btn.dataset.cat;
+          renderCategories();
+          renderProducts();
+        };
+      });
+    }
+
+    function renderProducts() {
+      const items = state.products.filter(p => state.category === 'all' || p.category === state.category);
+      els.products.innerHTML = items.map(product => {
+        const firstSize = product.sizes?.[0] || '';
+        return `
+          <article class="card">
+            <img src="${product.imageUrl || '/app/avatar.png'}" alt="${product.title}" />
+            <div class="card-body">
+              <div class="chip-row">
+                ${product.category ? `<span class="chip">${product.category}</span>` : ''}
+                <span class="chip">В наличии</span>
+              </div>
+              <div>
+                <h3>${product.title}</h3>
+                <p class="muted">${product.description || ''}</p>
+              </div>
+              <div class="price">${money(product.price)}</div>
+              ${product.sizes?.length ? `
+                <div class="sizes" data-size-wrap="${product.id}">
+                  ${product.sizes.map((size, idx) => `<button class="size ${idx === 0 ? 'active' : ''}" data-product-id="${product.id}" data-size="${size}">${size}</button>`).join('')}
+                </div>` : ''}
+              <button class="button" data-add="${product.id}" data-default-size="${firstSize}">Добавить в корзину</button>
+            </div>
+          </article>`;
+      }).join('');
+
+      document.querySelectorAll('.size').forEach(btn => {
+        btn.onclick = () => {
+          const parent = btn.parentElement;
+          [...parent.children].forEach(node => node.classList.remove('active'));
+          btn.classList.add('active');
+        };
+      });
+
+      document.querySelectorAll('[data-add]').forEach(btn => {
+        btn.onclick = () => addToCart(Number(btn.dataset.add));
+      });
+    }
+
+    function addToCart(productId) {
+      const product = state.products.find(item => item.id === productId);
+      if (!product) return;
+      const sizeButton = document.querySelector(`[data-size-wrap="${productId}"] .size.active`);
+      const size = sizeButton?.dataset.size || null;
+      const existing = state.cart.find(item => item.productId === productId && item.size === size);
+      if (existing) existing.quantity += 1;
+      else state.cart.push({ productId, size, quantity: 1 });
+      renderCart();
+      tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    function renderCart() {
+      const details = state.cart.map(entry => {
+        const product = state.products.find(item => item.id === entry.productId);
+        return product ? { ...entry, product } : null;
+      }).filter(Boolean);
+
+      const total = details.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      const count = details.reduce((sum, item) => sum + item.quantity, 0);
+
+      els.cartCount.textContent = count;
+      els.cartTotal.textContent = money(total);
+      els.checkoutBar.classList.toggle('hidden', count === 0);
+      els.cartPanel.classList.toggle('hidden', count === 0);
+
+      els.cartItems.innerHTML = details.map(item => `
+        <div class="cart-item">
+          <img src="${item.product.imageUrl || '/app/avatar.png'}" alt="${item.product.title}" />
+          <div>
+            <div style="font-weight:700;">${item.product.title}</div>
+            <div class="muted">${item.size ? `Размер: ${item.size} · ` : ''}${money(item.product.price)}</div>
+          </div>
+          <div style="display:grid; gap:8px; justify-items:end;">
+            <div>x${item.quantity}</div>
+            <button class="button secondary" data-remove="${item.productId}" data-size="${item.size || ''}">Убрать</button>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.onclick = () => {
+          state.cart = state.cart.filter(item => !(item.productId === Number(btn.dataset.remove) && (item.size || '') === btn.dataset.size));
+          renderCart();
+        };
+      });
+    }
+
+    async function load() {
+      const [settingsRes, productsRes] = await Promise.all([
+        fetch('/api/public/settings'),
+        fetch('/api/public/products'),
+      ]);
+      state.settings = await settingsRes.json();
+      state.products = await productsRes.json();
+      els.storeName.textContent = state.settings.storeName;
+      els.storeDescription.textContent = state.settings.storeDescription;
+      els.deliveryNote.textContent = state.settings.deliveryNote;
+      els.fullName.value = [tg.initDataUnsafe?.user?.first_name, tg.initDataUnsafe?.user?.last_name].filter(Boolean).join(' ');
+      renderCategories();
+      renderProducts();
+      renderCart();
+    }
+
+    els.openCheckout.onclick = () => {
+      els.cartPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    els.submitOrder.onclick = async () => {
+      if (!state.cart.length) return notify('Корзина пустая', true);
+      try {
+        els.submitOrder.disabled = true;
+        const res = await fetch('/api/public/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: tg.initData,
+            cart: state.cart,
+            customer: {
+              fullName: els.fullName.value,
+              phone: els.phone.value,
+              address: els.address.value,
+              comment: els.comment.value,
+            },
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Не удалось отправить заказ');
+        state.cart = [];
+        renderCart();
+        notify(`Заказ #${data.orderId} принят. Скоро свяжемся.`);
+        tg.MainButton.hide();
+      } catch (error) {
+        notify(error.message, true);
+      } finally {
+        els.submitOrder.disabled = false;
+      }
+    };
+
+    load().catch(error => notify(error.message, true));
+  </script>
+</body>
+</html>

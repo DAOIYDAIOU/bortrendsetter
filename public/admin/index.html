@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trendsetter Admin</title>
+  <style>
+    :root {
+      --bg: #07101f;
+      --panel: #0d1830;
+      --panel-2: #132345;
+      --text: #eef3ff;
+      --muted: #92a0c4;
+      --accent: #86b4ff;
+      --border: rgba(255,255,255,.08);
+      font-family: Inter, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: linear-gradient(180deg,#07101f,#03060d); color: var(--text); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .hero, .panel { background: rgba(13,24,48,.95); border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,.25); }
+    .hero { overflow: hidden; display: grid; grid-template-columns: 280px 1fr; }
+    .hero img { width: 100%; height: 100%; object-fit: cover; min-height: 260px; }
+    .hero-content { padding: 24px; display: grid; gap: 12px; }
+    .grid { display: grid; grid-template-columns: 340px 1fr; gap: 16px; margin-top: 16px; }
+    .panel { padding: 18px; }
+    .kpis { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .kpi { background: var(--panel-2); border-radius: 18px; padding: 16px; }
+    input, textarea, select { width: 100%; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+    button { border: 0; border-radius: 14px; padding: 12px 16px; cursor: pointer; font-weight: 700; }
+    .primary { background: linear-gradient(135deg,#86b4ff,#4c7eff); color: #07101f; }
+    .secondary { background: rgba(255,255,255,.05); color: var(--text); }
+    .list { display: grid; gap: 12px; }
+    .item { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 18px; padding: 14px; display: grid; gap: 10px; }
+    .row { display: grid; gap: 10px; }
+    .split { display:flex; justify-content:space-between; gap:12px; align-items:start; }
+    .muted { color: var(--muted); }
+    .hidden { display:none !important; }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <img src="/admin/avatar.png" alt="avatar" />
+      <div class="hero-content">
+        <div class="muted">Панель управления магазином</div>
+        <h1 style="margin:0;">Trendsetter Admin</h1>
+        <p class="muted" style="margin:0;">Тут меняешь товары, отслеживаешь заказы и редактируешь описание магазина.</p>
+        <div class="kpis" id="kpis">
+          <div class="kpi"><div class="muted">Товаров</div><div id="productsCount" style="font-size:30px;font-weight:800;">0</div></div>
+          <div class="kpi"><div class="muted">Заказов</div><div id="ordersCount" style="font-size:30px;font-weight:800;">0</div></div>
+          <div class="kpi"><div class="muted">Новых</div><div id="newOrdersCount" style="font-size:30px;font-weight:800;">0</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="row">
+        <div class="panel" id="loginPanel">
+          <h2>Вход</h2>
+          <div class="row">
+            <input id="login" placeholder="Логин" value="admin" />
+            <input id="password" placeholder="Пароль" type="password" />
+            <button class="primary" id="loginButton">Войти</button>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="settingsPanel">
+          <h2>Настройки магазина</h2>
+          <div class="row">
+            <input id="storeName" placeholder="Название" />
+            <textarea id="storeDescription" rows="3" placeholder="Описание"></textarea>
+            <textarea id="deliveryNote" rows="3" placeholder="Заметка о доставке"></textarea>
+            <input id="currency" placeholder="₽" />
+            <input id="supportUsername" placeholder="support username" />
+            <input id="avatarUrl" placeholder="URL аватарки" />
+            <button class="primary" id="saveSettings">Сохранить настройки</button>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="productEditorPanel">
+          <h2>Товар</h2>
+          <div class="row">
+            <input id="productTitle" placeholder="Название" />
+            <textarea id="productDescription" rows="3" placeholder="Описание"></textarea>
+            <input id="productPrice" placeholder="Цена в рублях, например 11990" />
+            <input id="productCategory" placeholder="Категория" />
+            <input id="productSizes" placeholder="Размеры через запятую: S, M, L" />
+            <input id="productImageUrl" placeholder="Ссылка на фото" />
+            <select id="productActive">
+              <option value="true">Активен</option>
+              <option value="false">Скрыт</option>
+            </select>
+            <div style="display:flex; gap:10px;">
+              <button class="primary" id="saveProduct">Сохранить товар</button>
+              <button class="secondary" id="resetProduct">Сбросить</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row hidden" id="dashboardPanels">
+        <div class="panel">
+          <div class="split"><h2 style="margin:0;">Товары</h2><button class="secondary" id="refreshData">Обновить</button></div>
+          <div class="list" id="productsList"></div>
+        </div>
+        <div class="panel">
+          <h2 style="margin-top:0;">Заказы</h2>
+          <div class="list" id="ordersList"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const state = { token: localStorage.getItem('admin_token') || '', editingProductId: null, bootstrap: null };
+    const api = {
+      async request(url, options = {}) {
+        const res = await fetch(url, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+            ...(options.headers || {}),
+          },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Ошибка запроса');
+        return data;
+      },
+    };
+
+    const els = Object.fromEntries([...document.querySelectorAll('[id]')].map(el => [el.id, el]));
+
+    function setAuthUi(authed) {
+      els.loginPanel.classList.toggle('hidden', authed);
+      els.settingsPanel.classList.toggle('hidden', !authed);
+      els.productEditorPanel.classList.toggle('hidden', !authed);
+      els.dashboardPanels.classList.toggle('hidden', !authed);
+    }
+
+    function showError(error) { alert(error.message || error); }
+
+    function fillProductForm(product = null) {
+      state.editingProductId = product?.id || null;
+      els.productTitle.value = product?.title || '';
+      els.productDescription.value = product?.description || '';
+      els.productPrice.value = product ? String(product.price / 100) : '';
+      els.productCategory.value = product?.category || '';
+      els.productSizes.value = product?.sizes?.join(', ') || '';
+      els.productImageUrl.value = product?.imageUrl || '';
+      els.productActive.value = product?.isActive ? 'true' : 'false';
+    }
+
+    function render() {
+      const data = state.bootstrap;
+      if (!data) return;
+      els.productsCount.textContent = data.products.length;
+      els.ordersCount.textContent = data.orders.length;
+      els.newOrdersCount.textContent = data.orders.filter(o => o.status === 'new').length;
+
+      els.storeName.value = data.settings.storeName || '';
+      els.storeDescription.value = data.settings.storeDescription || '';
+      els.deliveryNote.value = data.settings.deliveryNote || '';
+      els.currency.value = data.settings.currency || '₽';
+      els.supportUsername.value = data.settings.supportUsername || '';
+      els.avatarUrl.value = data.settings.avatarUrl || '';
+
+      els.productsList.innerHTML = data.products.map(product => `
+        <div class="item">
+          <div class="split">
+            <div>
+              <div style="font-weight:800;">${product.title}</div>
+              <div class="muted">${(product.price / 100).toFixed(2)} ${data.settings.currency} · ${product.category || 'Без категории'}</div>
+            </div>
+            <div class="muted">#${product.id}</div>
+          </div>
+          <div class="muted">${product.description || ''}</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="secondary" onclick='window.editProduct(${JSON.stringify(product).replace(/'/g, "&apos;")})'>Изменить</button>
+            <button class="secondary" onclick='window.deleteProduct(${product.id})'>Удалить</button>
+          </div>
+        </div>
+      `).join('');
+
+      els.ordersList.innerHTML = data.orders.map(order => `
+        <div class="item">
+          <div class="split">
+            <div>
+              <div style="font-weight:800;">Заказ #${order.id}</div>
+              <div class="muted">${order.fullName || 'Без имени'} ${order.username ? `(@${order.username})` : ''}</div>
+            </div>
+            <select onchange="window.changeOrderStatus(${order.id}, this.value)">
+              ${['new','processing','done','cancelled'].map(status => `<option value="${status}" ${order.status === status ? 'selected' : ''}>${status}</option>`).join('')}
+            </select>
+          </div>
+          <div class="muted">${order.phone || 'без телефона'} · ${order.address || 'без адреса'}</div>
+          <div>${order.items.map(item => `${item.title}${item.size ? ` [${item.size}]` : ''} × ${item.quantity}`).join('<br/>')}</div>
+          <div class="muted">Комментарий: ${order.comment || '—'}</div>
+        </div>
+      `).join('');
+    }
+
+    async function bootstrap() {
+      state.bootstrap = await api.request('/api/admin/bootstrap');
+      render();
+      fillProductForm();
+    }
+
+    els.loginButton.onclick = async () => {
+      try {
+        const data = await api.request('/api/admin/login', {
+          method: 'POST',
+          body: JSON.stringify({ login: els.login.value, password: els.password.value }),
+        });
+        state.token = data.token;
+        localStorage.setItem('admin_token', data.token);
+        setAuthUi(true);
+        await bootstrap();
+      } catch (error) { showError(error); }
+    };
+
+    els.saveSettings.onclick = async () => {
+      try {
+        await api.request('/api/admin/settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            storeName: els.storeName.value,
+            storeDescription: els.storeDescription.value,
+            deliveryNote: els.deliveryNote.value,
+            currency: els.currency.value,
+            supportUsername: els.supportUsername.value,
+            avatarUrl: els.avatarUrl.value,
+          }),
+        });
+        await bootstrap();
+        alert('Настройки сохранены');
+      } catch (error) { showError(error); }
+    };
+
+    els.saveProduct.onclick = async () => {
+      try {
+        const payload = {
+          title: els.productTitle.value,
+          description: els.productDescription.value,
+          price: Math.round(Number(els.productPrice.value) * 100),
+          category: els.productCategory.value,
+          sizes: els.productSizes.value.split(',').map(item => item.trim()).filter(Boolean),
+          imageUrl: els.productImageUrl.value,
+          isActive: els.productActive.value === 'true',
+        };
+        const url = state.editingProductId ? `/api/admin/products/${state.editingProductId}` : '/api/admin/products';
+        const method = state.editingProductId ? 'PUT' : 'POST';
+        await api.request(url, { method, body: JSON.stringify(payload) });
+        await bootstrap();
+        alert('Товар сохранен');
+      } catch (error) { showError(error); }
+    };
+
+    els.resetProduct.onclick = () => fillProductForm();
+    els.refreshData.onclick = () => bootstrap().catch(showError);
+
+    window.editProduct = (product) => fillProductForm(product);
+    window.deleteProduct = async (id) => {
+      if (!confirm('Удалить товар?')) return;
+      try {
+        await api.request(`/api/admin/products/${id}`, { method: 'DELETE' });
+        await bootstrap();
+      } catch (error) { showError(error); }
+    };
+    window.changeOrderStatus = async (id, status) => {
+      try {
+        await api.request(`/api/admin/orders/${id}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status }),
+        });
+        await bootstrap();
+      } catch (error) { showError(error); }
+    };
+
+    if (state.token) {
+      setAuthUi(true);
+      bootstrap().catch(error => {
+        localStorage.removeItem('admin_token');
+        state.token = '';
+        setAuthUi(false);
+        showError(error);
+      });
+    } else {
+      setAuthUi(false);
+    }
+  </script>
+</body>
+</html>
