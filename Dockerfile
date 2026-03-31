@@ -21,5 +21,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-# 🔥 ВАЖНО: создаем таблицы + сид + запускаем сервер
-CMD ["sh", "-c", "npx prisma db push && node prisma/seed.js && node src/server.js"]
+# 🔥 финальный запуск БЕЗ seed (чтобы не падал)
+CMD ["sh", "-c", "npx prisma db push && node src/server.js"]
