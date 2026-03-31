@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# 🔥 фикс Prisma (openssl)
+# фикс для Prisma
 RUN apk add --no-cache openssl libc6-compat
 
 # зависимости
@@ -13,7 +13,7 @@ RUN npm install
 COPY prisma ./prisma
 RUN npx prisma generate
 
-# остальной код
+# весь проект
 COPY . .
 
 ENV NODE_ENV=production
@@ -21,5 +21,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-# 🚀 запуск только сервера
-CMD ["node", "src/server.js"]
+# 🔥 ВАЖНО: создаем таблицы + сид + запускаем сервер
+CMD ["sh", "-c", "npx prisma db push && node prisma/seed.js && node src/server.js"]
