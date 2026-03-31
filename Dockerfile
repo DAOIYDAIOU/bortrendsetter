@@ -4,11 +4,16 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat
 
-# чтобы prisma не генерировался на этапе npm install
+# не даем prisma запускаться автоматически во время npm install
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY package*.json ./
 RUN npm install
+
+COPY prisma ./prisma
+
+# prisma generate только на этапе сборки и только с временным URL
+RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npx prisma generate
 
 COPY . .
 
@@ -17,4 +22,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma generate && npx prisma db push && node src/server.js"]
+CMD ["sh", "-c", "npx prisma db push && node src/server.js"]
