@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat
 
-# фейковый DATABASE_URL только для build-этапа
-ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+# чтобы prisma не генерировался на этапе npm install
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY package*.json ./
 RUN npm install
