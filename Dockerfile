@@ -4,15 +4,12 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat
 
-# не даем prisma запускаться автоматически во время npm install
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY package*.json ./
 RUN npm install
 
 COPY prisma ./prisma
-
-# prisma generate только на этапе сборки и только с временным URL
 RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npx prisma generate
 
 COPY . .
