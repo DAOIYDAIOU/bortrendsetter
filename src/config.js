@@ -7,11 +7,34 @@ export function getRequired(name) {
 }
 
 export const config = {
-  APP_URL: getRequired('APP_URL'),
-  BOT_TOKEN: getRequired('BOT_TOKEN'),
-  DATABASE_URL: getRequired('DATABASE_URL'),
-  JWT_SECRET: getRequired('JWT_SECRET'),
-  ADMIN_LOGIN: getRequired('ADMIN_LOGIN'),
-  ADMIN_PASSWORD: getRequired('ADMIN_PASSWORD'),
-  ADMIN_CHAT_ID: getRequired('ADMIN_CHAT_ID'),
+  get APP_URL() {
+    return getRequired('APP_URL');
+  },
+  get BOT_TOKEN() {
+    return getRequired('BOT_TOKEN');
+  },
+  get DATABASE_URL() {
+    return getRequired('DATABASE_URL');
+  },
+  get JWT_SECRET() {
+    return getRequired('JWT_SECRET');
+  },
+  get ADMIN_LOGIN() {
+    return getRequired('ADMIN_LOGIN');
+  },
+  get ADMIN_PASSWORD() {
+    return getRequired('ADMIN_PASSWORD');
+  },
+  get ADMIN_CHAT_ID() {
+    return getRequired('ADMIN_CHAT_ID');
+  },
+  requireForProduction() {
+    getRequired('APP_URL');
+    getRequired('BOT_TOKEN');
+    getRequired('DATABASE_URL');
+    getRequired('JWT_SECRET');
+    getRequired('ADMIN_LOGIN');
+    getRequired('ADMIN_PASSWORD');
+    getRequired('ADMIN_CHAT_ID');
+  },
 };
