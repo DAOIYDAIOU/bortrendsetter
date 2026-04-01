@@ -40,6 +40,10 @@ async function ensureStoreSettings() {
   });
 }
 
+app.get('/', (_req, res) => {
+  res.redirect('/app');
+});
+
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -94,6 +98,7 @@ app.post('/api/public/order', async (req, res) => {
 
     const itemTotal = product.price * quantity;
     totalAmount += itemTotal;
+
     items.push({
       productId: product.id,
       title: product.title,
@@ -129,6 +134,7 @@ app.post('/api/public/order', async (req, res) => {
 
   const settings = await prisma.storeSetting.findUnique({ where: { id: 1 } });
   const currency = settings?.currency || config.currency;
+
   const lines = order.items.map(
     (item) =>
       `• ${item.title}${item.size ? ` [${item.size}]` : ''} × ${item.quantity} — ${money(item.price * item.quantity, currency)}`
@@ -201,6 +207,7 @@ app.put('/api/admin/settings', adminAuthMiddleware, async (req, res) => {
       avatarUrl: req.body.avatarUrl || '/app/avatar.png',
     },
   });
+
   res.json(settings);
 });
 
@@ -216,6 +223,7 @@ app.post('/api/admin/products', adminAuthMiddleware, async (req, res) => {
       isActive: Boolean(req.body.isActive),
     },
   });
+
   res.status(201).json(product);
 });
 
@@ -232,6 +240,7 @@ app.put('/api/admin/products/:id', adminAuthMiddleware, async (req, res) => {
       isActive: Boolean(req.body.isActive),
     },
   });
+
   res.json(product);
 });
 
@@ -245,6 +254,7 @@ app.get('/api/admin/orders', adminAuthMiddleware, async (_req, res) => {
     include: { items: true },
     orderBy: { createdAt: 'desc' },
   });
+
   res.json(orders);
 });
 
@@ -254,25 +264,38 @@ app.put('/api/admin/orders/:id/status', adminAuthMiddleware, async (req, res) =>
     data: { status: req.body.status },
     include: { items: true },
   });
+
   res.json(order);
 });
 
 app.get('/app', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'app', 'index.html'));
+  res.sendFile(path.join(publicDir, 'app', 'index.html'), (err) => {
+    if (err) {
+      console.error('Failed to send /app index.html:', err);
+      if (!res.headersSent) {
+        res.status(err.statusCode || 500).send('Mini app file not found');
+      }
+    }
+  });
 });
 
 app.get('/admin', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'admin', 'index.html'));
+  res.sendFile(path.join(publicDir, 'admin', 'index.html'), (err) => {
+    if (err) {
+      console.error('Failed to send /admin index.html:', err);
+      if (!res.headersSent) {
+        res.status(err.statusCode || 500).send('Admin file not found');
+      }
+    }
+  });
 });
 
 async function start() {
   await ensureAdminUser();
   await ensureStoreSettings();
 
-  const PORT = process.env.PORT || 3000;
-
-  const server = app.listen(PORT, async () => {
-    console.log(`Server started on port ${PORT}`);
+  const server = app.listen(config.port, async () => {
+    console.log(`Server started on port ${config.port}`);
     try {
       await initBot();
     } catch (error) {
