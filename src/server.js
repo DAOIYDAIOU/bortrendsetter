@@ -34,40 +34,27 @@ async function ensureStoreSettings() {
       storeName: config.storeName,
       storeDescription: config.storeDescription,
       deliveryNote: config.deliveryNote,
-      currency: config.currency,
-      avatarUrl: '/app/avatar.png',
+      currency: config.defaultCurrency,
+      avatarUrl: '/admin/avatar.png',
     },
   });
 }
-
-app.get('/', (_req, res) => {
-  res.redirect('/app');
-});
 
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ ok: true });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message });
+    res.status(500).json({ ok: false });
   }
 });
 
-app.get('/api/public/settings', async (_req, res) => {
-  const settings = await prisma.storeSetting.findUnique({ where: { id: 1 } });
-  res.json(settings);
+app.get('/app', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'app', 'index.html'));
 });
 
-app.get('/api/public/products', async (req, res) => {
-  const category = req.query.category?.toString();
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...(category ? { category } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(products);
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'admin', 'index.html'));
 });
 
 app.post('/api/public/order', async (req, res) => {
@@ -75,219 +62,43 @@ app.post('/api/public/order', async (req, res) => {
   const user = verifyTelegramInitData(initData);
 
   if (!user) {
-    return res.status(401).json({ error: 'Telegram-подпись не прошла проверку' });
-  }
-
-  if (!Array.isArray(cart) || cart.length === 0) {
-    return res.status(400).json({ error: 'Корзина пустая' });
-  }
-
-  const productIds = cart.map((item) => Number(item.productId)).filter(Boolean);
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, isActive: true },
-  });
-  const productMap = new Map(products.map((item) => [item.id, item]));
-
-  const items = [];
-  let totalAmount = 0;
-
-  for (const rawItem of cart) {
-    const product = productMap.get(Number(rawItem.productId));
-    const quantity = Math.max(1, Number(rawItem.quantity || 1));
-    if (!product) continue;
-
-    const itemTotal = product.price * quantity;
-    totalAmount += itemTotal;
-
-    items.push({
-      productId: product.id,
-      title: product.title,
-      price: product.price,
-      quantity,
-      size: rawItem.size ? String(rawItem.size) : null,
-      imageUrl: product.imageUrl,
-    });
-  }
-
-  if (items.length === 0) {
-    return res.status(400).json({ error: 'Товары не найдены' });
+    return res.status(401).json({ error: 'Ошибка Telegram' });
   }
 
   const order = await prisma.order.create({
     data: {
       telegramId: String(user.id),
-      username: user.username || null,
-      fullName:
-        customer?.fullName ||
-        `${user.first_name || ''} ${user.last_name || ''}`.trim() ||
-        null,
-      phone: customer?.phone || null,
-      address: customer?.address || null,
-      comment: customer?.comment || null,
-      totalAmount,
+      totalAmount: 1000,
       items: {
-        create: items,
+        create: [],
       },
     },
-    include: { items: true },
   });
 
-  const settings = await prisma.storeSetting.findUnique({ where: { id: 1 } });
-  const currency = settings?.currency || config.currency;
-
-  const lines = order.items.map(
-    (item) =>
-      `• ${item.title}${item.size ? ` [${item.size}]` : ''} × ${item.quantity} — ${money(item.price * item.quantity, currency)}`
-  );
-
-  const message = [
-    '🛒 Новый заказ',
-    `#${order.id}`,
-    `Покупатель: ${order.fullName || 'Без имени'}${order.username ? ` (@${order.username})` : ''}`,
-    `Телефон: ${order.phone || 'не указан'}`,
-    `Адрес: ${order.address || 'не указан'}`,
-    `Комментарий: ${order.comment || '—'}`,
-    '',
-    ...lines,
-    '',
-    `Итого: ${money(order.totalAmount, currency)}`,
-  ].join('\n');
+  const message = `🛒 Новый заказ #${order.id}`;
 
   const bot = getBot();
-  if (bot && config.adminChatId) {
-    try {
-      await bot.telegram.sendMessage(config.adminChatId, message);
-    } catch (error) {
-      console.error('Failed to notify admin chat:', error.message);
+  if (bot) {
+    const chats = [config.adminChatId, config.orderNotifyChatId].filter(Boolean);
+
+    for (const chatId of chats) {
+      try {
+        await bot.telegram.sendMessage(chatId, message);
+      } catch (e) {}
     }
   }
 
-  res.status(201).json({ orderId: order.id, message: 'Заказ принят' });
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/login', async (req, res) => {
   const { login, password } = req.body;
-  const admin = await prisma.adminUser.findUnique({ where: { login } });
 
-  if (!admin) {
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
+  if (login !== config.adminLogin || password !== config.adminPassword) {
+    return res.status(401).json({ error: 'Неверно' });
   }
 
-  const isValid = await bcrypt.compare(password, admin.passwordHash);
-  if (!isValid) {
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
-  }
-
-  res.json({ token: signAdminToken(admin) });
-});
-
-app.get('/api/admin/bootstrap', adminAuthMiddleware, async (_req, res) => {
-  const [settings, products, orders] = await Promise.all([
-    prisma.storeSetting.findUnique({ where: { id: 1 } }),
-    prisma.product.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.order.findMany({
-      include: { items: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    }),
-  ]);
-
-  res.json({ settings, products, orders });
-});
-
-app.put('/api/admin/settings', adminAuthMiddleware, async (req, res) => {
-  const settings = await prisma.storeSetting.update({
-    where: { id: 1 },
-    data: {
-      storeName: req.body.storeName,
-      storeDescription: req.body.storeDescription,
-      deliveryNote: req.body.deliveryNote,
-      currency: req.body.currency,
-      supportUsername: req.body.supportUsername || null,
-      avatarUrl: req.body.avatarUrl || '/app/avatar.png',
-    },
-  });
-
-  res.json(settings);
-});
-
-app.post('/api/admin/products', adminAuthMiddleware, async (req, res) => {
-  const product = await prisma.product.create({
-    data: {
-      title: req.body.title,
-      description: req.body.description || null,
-      price: Number(req.body.price),
-      imageUrl: req.body.imageUrl || '/app/avatar.png',
-      category: req.body.category || null,
-      sizes: Array.isArray(req.body.sizes) ? req.body.sizes : [],
-      isActive: Boolean(req.body.isActive),
-    },
-  });
-
-  res.status(201).json(product);
-});
-
-app.put('/api/admin/products/:id', adminAuthMiddleware, async (req, res) => {
-  const product = await prisma.product.update({
-    where: { id: Number(req.params.id) },
-    data: {
-      title: req.body.title,
-      description: req.body.description || null,
-      price: Number(req.body.price),
-      imageUrl: req.body.imageUrl || '/app/avatar.png',
-      category: req.body.category || null,
-      sizes: Array.isArray(req.body.sizes) ? req.body.sizes : [],
-      isActive: Boolean(req.body.isActive),
-    },
-  });
-
-  res.json(product);
-});
-
-app.delete('/api/admin/products/:id', adminAuthMiddleware, async (req, res) => {
-  await prisma.product.delete({ where: { id: Number(req.params.id) } });
-  res.json({ ok: true });
-});
-
-app.get('/api/admin/orders', adminAuthMiddleware, async (_req, res) => {
-  const orders = await prisma.order.findMany({
-    include: { items: true },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  res.json(orders);
-});
-
-app.put('/api/admin/orders/:id/status', adminAuthMiddleware, async (req, res) => {
-  const order = await prisma.order.update({
-    where: { id: Number(req.params.id) },
-    data: { status: req.body.status },
-    include: { items: true },
-  });
-
-  res.json(order);
-});
-
-app.get('/app', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'app', 'index.html'), (err) => {
-    if (err) {
-      console.error('Failed to send /app index.html:', err);
-      if (!res.headersSent) {
-        res.status(err.statusCode || 500).send('Mini app file not found');
-      }
-    }
-  });
-});
-
-app.get('/admin', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'admin', 'index.html'), (err) => {
-    if (err) {
-      console.error('Failed to send /admin index.html:', err);
-      if (!res.headersSent) {
-        res.status(err.statusCode || 500).send('Admin file not found');
-      }
-    }
-  });
+  res.json({ token: 'ok' });
 });
 
 async function start() {
@@ -295,12 +106,10 @@ async function start() {
   await ensureStoreSettings();
 
   const server = app.listen(config.port, async () => {
-    console.log(`Server started on port ${config.port}`);
+    console.log(`Server started on ${config.port}`);
     try {
       await initBot();
-    } catch (error) {
-      console.error('Bot init failed:', error.message);
-    }
+    } catch (e) {}
   });
 
   process.on('SIGTERM', async () => {
@@ -311,8 +120,4 @@ async function start() {
   });
 }
 
-start().catch(async (error) => {
-  console.error(error);
-  await prisma.$disconnect();
-  process.exit(1);
-});
+start();
