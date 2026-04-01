@@ -18,7 +18,10 @@ export const config = {
   adminPassword: getRequired('ADMIN_PASSWORD'),
   adminChatId: getRequired('ADMIN_CHAT_ID'),
 
-  orderNotifyChatId: process.env.ORDER_NOTIFY_CHAT_ID || null,
+  // 🔥 несколько id через запятую
+  orderNotifyChatIds: process.env.ORDER_NOTIFY_CHAT_ID
+    ? process.env.ORDER_NOTIFY_CHAT_ID.split(',').map(id => id.trim())
+    : [],
 
   storeName: getRequired('STORE_NAME'),
   storeDescription: getRequired('STORE_DESCRIPTION'),
