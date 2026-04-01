@@ -35,16 +35,18 @@ async function ensureStoreSettings() {
       storeDescription: config.storeDescription,
       deliveryNote: config.deliveryNote,
       currency: config.defaultCurrency,
-      avatarUrl: '/admin/avatar.png',
+      avatarUrl: '/app/avatar.png',
     },
   });
 }
+
+app.get('/', (_req, res) => res.redirect('/app'));
 
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ ok: true });
-  } catch (error) {
+  } catch {
     res.status(500).json({ ok: false });
   }
 });
@@ -58,33 +60,35 @@ app.get('/admin', (_req, res) => {
 });
 
 app.post('/api/public/order', async (req, res) => {
-  const { initData, cart, customer } = req.body;
+  const { initData } = req.body;
   const user = verifyTelegramInitData(initData);
 
-  if (!user) {
-    return res.status(401).json({ error: 'Ошибка Telegram' });
-  }
+  if (!user) return res.status(401).json({ error: 'Ошибка Telegram' });
 
   const order = await prisma.order.create({
     data: {
       telegramId: String(user.id),
       totalAmount: 1000,
-      items: {
-        create: [],
-      },
+      items: { create: [] },
     },
   });
 
   const message = `🛒 Новый заказ #${order.id}`;
 
   const bot = getBot();
-  if (bot) {
-    const chats = [config.adminChatId, config.orderNotifyChatId].filter(Boolean);
 
+  const chats = [
+    config.adminChatId,
+    ...config.orderNotifyChatIds,
+  ].filter(Boolean);
+
+  if (bot) {
     for (const chatId of chats) {
       try {
         await bot.telegram.sendMessage(chatId, message);
-      } catch (e) {}
+      } catch (e) {
+        console.error('send error', e.message);
+      }
     }
   }
 
@@ -109,7 +113,7 @@ async function start() {
     console.log(`Server started on ${config.port}`);
     try {
       await initBot();
-    } catch (e) {}
+    } catch {}
   });
 
   process.on('SIGTERM', async () => {
