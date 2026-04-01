@@ -7,6 +7,8 @@ function getRequired(name) {
 }
 
 export const config = {
+  port: process.env.PORT || 8080,
+
   appUrl: getRequired('APP_URL'),
   botToken: getRequired('BOT_TOKEN'),
   databaseUrl: getRequired('DATABASE_URL'),
@@ -16,25 +18,14 @@ export const config = {
   adminPassword: getRequired('ADMIN_PASSWORD'),
   adminChatId: getRequired('ADMIN_CHAT_ID'),
 
+  orderNotifyChatId: process.env.ORDER_NOTIFY_CHAT_ID || null,
+
   storeName: getRequired('STORE_NAME'),
   storeDescription: getRequired('STORE_DESCRIPTION'),
   deliveryNote: getRequired('DELIVERY_NOTE'),
-  currency: getRequired('DEFAULT_CURRENCY'),
-
-  port: Number(process.env.PORT || 3000),
+  defaultCurrency: getRequired('DEFAULT_CURRENCY'),
 
   requireForProduction() {
-    getRequired('APP_URL');
-    getRequired('BOT_TOKEN');
-    getRequired('DATABASE_URL');
-    getRequired('JWT_SECRET');
-    getRequired('ADMIN_LOGIN');
-    getRequired('ADMIN_PASSWORD');
-    getRequired('ADMIN_CHAT_ID');
-    getRequired('STORE_NAME');
-    getRequired('STORE_DESCRIPTION');
-    getRequired('DELIVERY_NOTE');
-    getRequired('DEFAULT_CURRENCY');
     return true;
   },
 };
