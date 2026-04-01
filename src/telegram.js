@@ -5,12 +5,12 @@ import { config } from './config.js';
 let botInstance = null;
 
 function getMiniAppUrl() {
-  return `${config.APP_URL.replace(/\/$/, '')}/app`;
+  return `${config.appUrl.replace(/\/$/, '')}/app`;
 }
 
 export function getBot() {
   if (!botInstance) {
-    botInstance = new Telegraf(config.BOT_TOKEN);
+    botInstance = new Telegraf(config.botToken);
   }
   return botInstance;
 }
@@ -45,6 +45,7 @@ export async function initBot() {
     },
   });
 
+  await bot.launch();
   return bot;
 }
 
@@ -65,7 +66,7 @@ export function verifyTelegramInitData(initData) {
 
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(config.BOT_TOKEN)
+      .update(config.botToken)
       .digest();
 
     const calculatedHash = crypto
