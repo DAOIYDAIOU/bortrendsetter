@@ -10,13 +10,13 @@ export function initBot() {
     const isAdmin = String(ctx.from.id) === String(config.adminChatId);
 
     await ctx.reply(
-      `Добро пожаловать в ${config.storeName} 🔥`,
+      `Добро пожаловать в ${config.storeName}`,
       {
         reply_markup: {
           keyboard: [
-            [{ text: 'Шоп', web_app: { url: config.appUrl } }],
+            [{ text: 'Магазин', web_app: { url: config.appUrl + '/app' } }],
             ...(isAdmin
-              ? [[{ text: 'Админка', web_app: { url: `${config.appUrl}/admin` } }]]
+              ? [[{ text: 'Админка', web_app: { url: config.appUrl + '/admin' } }]]
               : []),
           ],
           resize_keyboard: true,
