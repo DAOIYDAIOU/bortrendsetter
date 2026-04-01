@@ -1,123 +1,37 @@
-import express from 'express';
-import cors from 'cors';
-import morgan from 'morgan';
-import bcrypt from 'bcryptjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { prisma } from './prisma.js';
+import { Telegraf } from 'telegraf';
 import { config } from './config.js';
-import { adminAuthMiddleware, ensureAdminUser, signAdminToken } from './auth.js';
-import { getBot, initBot, verifyTelegramInitData } from './telegram.js';
 
-config.requireForProduction();
+let bot;
 
-const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const publicDir = path.join(__dirname, '..', 'public');
+export function initBot() {
+  bot = new Telegraf(config.botToken);
 
-app.use(cors());
-app.use(express.json({ limit: '1mb' }));
-app.use(morgan('dev'));
-app.use(express.static(publicDir));
+  bot.start(async (ctx) => {
+    const isAdmin = String(ctx.from.id) === String(config.adminChatId);
 
-function money(value, currency) {
-  return `${(value / 100).toFixed(2)} ${currency}`;
+    await ctx.reply(
+      `Добро пожаловать в ${config.storeName} 🔥`,
+      {
+        reply_markup: {
+          keyboard: [
+            [{ text: '🛍 Открыть магазин', web_app: { url: config.appUrl } }],
+            ...(isAdmin
+              ? [[{ text: '⚙️ Админка', web_app: { url: `${config.appUrl}/admin` } }]]
+              : []),
+          ],
+          resize_keyboard: true,
+        },
+      }
+    );
+  });
+
+  bot.launch();
 }
 
-async function ensureStoreSettings() {
-  await prisma.storeSetting.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      id: 1,
-      storeName: config.storeName,
-      storeDescription: config.storeDescription,
-      deliveryNote: config.deliveryNote,
-      currency: config.defaultCurrency,
-      avatarUrl: '/admin/avatar.png',
-    },
-  });
+export function getBot() {
+  return bot;
 }
 
-app.get('/health', async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true });
-  } catch (error) {
-    res.status(500).json({ ok: false });
-  }
-});
-
-app.get('/app', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'app', 'index.html'));
-});
-
-app.get('/admin', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'admin', 'index.html'));
-});
-
-app.post('/api/public/order', async (req, res) => {
-  const { initData, cart, customer } = req.body;
-  const user = verifyTelegramInitData(initData);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Ошибка Telegram' });
-  }
-
-  const order = await prisma.order.create({
-    data: {
-      telegramId: String(user.id),
-      totalAmount: 1000,
-      items: {
-        create: [],
-      },
-    },
-  });
-
-  const message = `🛒 Новый заказ #${order.id}`;
-
-  const bot = getBot();
-  if (bot) {
-    const chats = [config.adminChatId, config.orderNotifyChatId].filter(Boolean);
-
-    for (const chatId of chats) {
-      try {
-        await bot.telegram.sendMessage(chatId, message);
-      } catch (e) {}
-    }
-  }
-
-  res.json({ ok: true });
-});
-
-app.post('/api/admin/login', async (req, res) => {
-  const { login, password } = req.body;
-
-  if (login !== config.adminLogin || password !== config.adminPassword) {
-    return res.status(401).json({ error: 'Неверно' });
-  }
-
-  res.json({ token: 'ok' });
-});
-
-async function start() {
-  await ensureAdminUser();
-  await ensureStoreSettings();
-
-  const server = app.listen(config.port, async () => {
-    console.log(`Server started on ${config.port}`);
-    try {
-      await initBot();
-    } catch (e) {}
-  });
-
-  process.on('SIGTERM', async () => {
-    server.close(async () => {
-      await prisma.$disconnect();
-      process.exit(0);
-    });
-  });
+export function verifyTelegramInitData() {
+  return { id: 1 };
 }
-
-start();
