@@ -2,24 +2,24 @@ import crypto from 'node:crypto';
 import { Telegraf, Markup } from 'telegraf';
 import { config } from './config.js';
 
-let bot;
+let botInstance = null;
 
 function getMiniAppUrl() {
   return `${config.APP_URL.replace(/\/$/, '')}/app`;
 }
 
 export function getBot() {
-  if (!bot) {
-    bot = new Telegraf(config.BOT_TOKEN);
+  if (!botInstance) {
+    botInstance = new Telegraf(config.BOT_TOKEN);
   }
-  return bot;
+  return botInstance;
 }
 
 export async function initBot() {
-  const telegramBot = getBot();
+  const bot = getBot();
   const miniAppUrl = getMiniAppUrl();
 
-  telegramBot.start(async (ctx) => {
+  bot.start(async (ctx) => {
     await ctx.reply(
       'Добро пожаловать в Trendsetter Market 🔥',
       Markup.inlineKeyboard([
@@ -28,17 +28,16 @@ export async function initBot() {
     );
   });
 
-  telegramBot.command('help', async (ctx) => {
-    await ctx.reply('Нажми кнопку ниже, чтобы открыть магазин.', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Открыть магазин', web_app: { url: miniAppUrl } }],
-        ],
-      },
-    });
+  bot.command('help', async (ctx) => {
+    await ctx.reply(
+      'Нажми кнопку ниже, чтобы открыть магазин.',
+      Markup.inlineKeyboard([
+        [Markup.button.webApp('Открыть магазин', miniAppUrl)],
+      ])
+    );
   });
 
-  await telegramBot.telegram.setChatMenuButton({
+  await bot.telegram.setChatMenuButton({
     menu_button: {
       type: 'web_app',
       text: 'Открыть магазин',
@@ -46,8 +45,7 @@ export async function initBot() {
     },
   });
 
-  await telegramBot.launch();
-  return telegramBot;
+  return bot;
 }
 
 export function verifyTelegramInitData(initData) {
